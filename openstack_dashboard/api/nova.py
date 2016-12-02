@@ -25,6 +25,7 @@ import logging
 from django.conf import settings
 from django.utils.functional import cached_property  # noqa
 from django.utils.translation import ugettext_lazy as _
+from django.core.cache import cache
 import six
 
 from novaclient import client as nova_client
@@ -115,20 +116,29 @@ class Server(base.APIResourceWrapper):
     def image_name(self):
         import glanceclient.exc as glance_exceptions  # noqa
         from openstack_dashboard.api import glance  # noqa
-
         if not self.image:
             return _("-")
-        if hasattr(self.image, 'name'):
+        elif hasattr(self.image, 'name'):
             return self.image.name
-        if 'name' in self.image:
+        elif 'name' in self.image:
             return self.image['name']
+        elif hasattr(self.image, 'id'):
+            image_id = self.image.id
+        elif 'id' in self.image:
+            image_id = self.image['id']
         else:
-            try:
-                image = glance.image_get(self.request, self.image['id'])
-                return image.name
-            except (glance_exceptions.ClientException,
-                    horizon_exceptions.ServiceCatalogException):
-                return _("-")
+            return _("-")
+
+        cached_image_name = cache.get("image_name_cache_%s" % image_id)
+        if cached_image_name is not None:
+            return cached_image_name
+        try:
+            image = glance.image_get(self.request, image_id)
+            cache.set("image_name_cache_%s" % image_id, image.name, 3600)
+            return image.name
+        except (glance_exceptions.ClientException,
+                horizon_exceptions.ServiceCatalogException):
+            return _("-")
 
     @property
     def internal_name(self):
