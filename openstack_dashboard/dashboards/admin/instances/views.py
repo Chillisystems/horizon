@@ -71,6 +71,7 @@ class AdminIndexView(tables.DataTableView):
         return self._more
 
     def get_data(self):
+        flavor_cache = dict()
         instances = []
         marker = self.request.GET.get(
             project_tables.AdminInstancesTable._meta.pagination_param, None)
@@ -114,7 +115,7 @@ class AdminIndexView(tables.DataTableView):
 
             # Gather our flavors to correlate against IDs
             try:
-                flavors = api.nova.flavor_list(self.request)
+                flavors = api.nova.flavor_list(self.request, is_public=None)
             except Exception:
                 # If fails to retrieve flavor list, creates an empty list.
                 flavors = []
@@ -130,8 +131,12 @@ class AdminIndexView(tables.DataTableView):
                     else:
                         # If the flavor_id is not in full_flavors list,
                         # gets it via nova api.
-                        inst.full_flavor = api.nova.flavor_get(
-                            self.request, flavor_id)
+                        if flavor_id in flavor_cache:
+                            inst.full_flavor = flavor_cache[flavor_id]
+                        else:
+                            inst.full_flavor = api.nova.flavor_get(
+                                self.request, flavor_id)
+                            flavor_cache[flavor_id] = inst.full_flavor
                 except Exception:
                     msg = _('Unable to retrieve instance size information.')
                     exceptions.handle(self.request, msg)

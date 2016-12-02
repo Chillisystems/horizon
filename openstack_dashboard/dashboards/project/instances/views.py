@@ -64,6 +64,7 @@ class IndexView(tables.DataTableView):
         return self._more
 
     def get_data(self):
+        flavor_cache = dict()
         marker = self.request.GET.get(
             project_tables.InstancesTable._meta.pagination_param, None)
         search_opts = self.get_filters({'marker': marker, 'paginate': True})
@@ -89,7 +90,7 @@ class IndexView(tables.DataTableView):
 
             # Gather our flavors and images and correlate our instances to them
             try:
-                flavors = api.nova.flavor_list(self.request)
+                flavors = api.nova.flavor_list(self.request, is_public=None)
             except Exception:
                 flavors = []
                 exceptions.handle(self.request, ignore=True)
@@ -122,8 +123,12 @@ class IndexView(tables.DataTableView):
                     else:
                         # If the flavor_id is not in full_flavors list,
                         # get it via nova api.
-                        instance.full_flavor = api.nova.flavor_get(
-                            self.request, flavor_id)
+                        if flavor_id in flavor_cache:
+                            instance.full_flavor = flavor_cache[flavor_id]
+                        else:
+                            instance.full_flavor = api.nova.flavor_get(
+                                self.request, flavor_id)
+                            flavor_cache[flavor_id] = instance.full_flavor
                 except Exception:
                     msg = ('Unable to retrieve flavor "%s" for instance "%s".'
                            % (flavor_id, instance.id))

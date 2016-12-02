@@ -126,14 +126,31 @@ TEMPLATE_CONTEXT_PROCESSORS = (
     'openstack_dashboard.context_processors.openstack',
 )
 
-TEMPLATE_LOADERS = (
+# TEMPLATE_LOADERS = (
+#     'horizon.loaders.TemplateLoader',
+#     ('django.template.loaders.cached.Loader',
+#         'horizon.themes.ThemeTemplateLoader',
+#         'django.template.loaders.filesystem.Loader',
+#         'django.template.loaders.app_directories.Loader',
+#     ),
+# )
+
+TEMPLATE_LOADERS = ()
+
+
+
+CACHED_TEMPLATE_LOADERS = (
+    'horizon.loaders.TemplateLoader',
     'horizon.themes.ThemeTemplateLoader',
-    ('django.template.loaders.cached.Loader', (
-        'django.template.loaders.filesystem.Loader',
-        'django.template.loaders.app_directories.Loader',
-        'horizon.loaders.TemplateLoader',
-    )),
-)
+    'django.template.loaders.filesystem.Loader',
+    'django.template.loaders.app_directories.Loader',
+    )
+
+ADD_TEMPLATE_LOADERS = []
+
+TEMPLATE_LOADERS += (
+        ('django.template.loaders.cached.Loader', CACHED_TEMPLATE_LOADERS),
+) + tuple(ADD_TEMPLATE_LOADERS)
 
 TEMPLATE_DIRS = (
     os.path.join(ROOT_PATH, 'templates'),
