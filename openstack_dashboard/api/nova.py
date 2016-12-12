@@ -23,9 +23,9 @@ from __future__ import absolute_import
 import logging
 
 from django.conf import settings
+from django.core.cache import cache
 from django.utils.functional import cached_property  # noqa
 from django.utils.translation import ugettext_lazy as _
-from django.core.cache import cache
 import six
 
 from novaclient import client as nova_client
@@ -136,8 +136,11 @@ class Server(base.APIResourceWrapper):
             image = glance.image_get(self.request, image_id)
             cache.set("image_name_cache_%s" % image_id, image.name, 3600)
             return image.name
-        except (glance_exceptions.ClientException,
-                horizon_exceptions.ServiceCatalogException):
+        except glance_exceptions.ClientException as e:
+            if e.code == 404:
+                cache.set("image_name_cache_%s" % image_id, _("-"), 3600)
+            return _("-")
+        except horizon_exceptions.ServiceCatalogException:
             return _("-")
 
     @property
